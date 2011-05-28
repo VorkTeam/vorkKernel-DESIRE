@@ -391,8 +391,12 @@ void avs_enable(int i) {
 			avs_work_init();
 		}
 	} else {
-		avs_disable();
-		avs_work_exit();
+		if(!kavs_wq) { // if there isn't a workqueue, trying to destroy causes an oops
+			printk("AVS seems to be already disabled\n");
+		} else {
+			avs_disable();
+			avs_work_exit();
+		}
 	}
 }
 
