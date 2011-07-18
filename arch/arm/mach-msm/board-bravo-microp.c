@@ -41,7 +41,6 @@
 #include <linux/lightsensor.h>
 #include <mach/mmc.h>
 #include <mach/htc_35mm_jack.h>
-//#include <asm/setup.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
@@ -758,7 +757,12 @@ static ssize_t microp_i2c_led_blink_store(struct device *dev,
 	case 3:
 		mode = val + 1;
 		break;
-
+	case 4:
+		if (ldata->type == AMBER_LED) {
+			mode = val + 1;
+			break;
+		}
+		/* else fall through to EINVAL */
 	default:
 		mutex_unlock(&ldata->led_data_mutex);
 		return -EINVAL;
@@ -1017,7 +1021,7 @@ static int microp_spi_enable(uint8_t on)
  * is using it
  * */
 int microp_spi_vote_enable(int spi_device, uint8_t enable) {
-	//XXX need to check that all that crap in the HTC kernel is needed
+	/* XXX need to check that all that crap in the HTC kernel is needed */
 	struct i2c_client *client = private_microp_client;
 	struct microp_i2c_client_data *cdata = i2c_get_clientdata(client);
 	uint8_t data[2] = {0, 0};
