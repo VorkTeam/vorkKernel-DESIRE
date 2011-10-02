@@ -886,6 +886,14 @@ config USB_ANDROID_MASS_STORAGE
 	help
 	  Provides USB mass storage function for android gadget driver.
 
+config USB_CSW_HACK
+	boolean "USB Mass storage csw hack Feature"
+	depends on USB_ANDROID_MASS_STORAGE
+	default y
+	help
+	 This csw hack feature is for increasing the performance of the mass
+	 storage
+
 config USB_ANDROID_MTP
 	boolean "Android MTP function"
 	depends on USB_ANDROID
