@@ -317,14 +317,6 @@ void __init msm_clock_init(struct clk *clock_tbl, unsigned num_clocks)
 }
 
 #if defined(CONFIG_DEBUG_FS)
-static struct clk *msm_clock_get_nth(unsigned index)
-{
-	if (index < msm_num_clocks)
-		return msm_clocks + index;
-	else
-		return 0;
-}
-
 static int clock_debug_rate_set(void *data, u64 val)
 {
 	struct clk *clock = data;
