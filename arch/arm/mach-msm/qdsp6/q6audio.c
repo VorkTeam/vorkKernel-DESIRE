@@ -544,18 +544,6 @@ static int audio_rx_mute(struct audio_client *ac, uint32_t dev_id, int mute)
 	return audio_ioctl(ac, &rpc, sizeof(rpc));
 }
 
-static int audio_tx_volume(struct audio_client *ac, uint32_t dev_id, int32_t volume)
-{
-	struct adsp_set_dev_volume_command rpc;
-
-	memset(&rpc, 0, sizeof(rpc));
-	rpc.hdr.opcode = ADSP_AUDIO_IOCTL_CMD_SET_DEVICE_VOL;
-	rpc.device_id = dev_id;
-	rpc.path = ADSP_PATH_TX;
-	rpc.volume = volume;
-	return audio_ioctl(ac, &rpc, sizeof(rpc));
-}
-
 static int audio_tx_mute(struct audio_client *ac, uint32_t dev_id, int mute)
 {
 	struct adsp_set_dev_mute_command rpc;
