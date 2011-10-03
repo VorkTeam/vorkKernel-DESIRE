@@ -131,7 +131,9 @@
 #include <linux/random.h>
 #include <trace/events/napi.h>
 #include <linux/pci.h>
+#ifdef CONFIG_IFACE_STAT
 #include <linux/iface_stat.h>
+#endif
 
 #include "net-sysfs.h"
 
@@ -4823,8 +4825,10 @@ static void rollback_registered_many(struct list_head *head)
 	synchronize_net();
 
 	list_for_each_entry(dev, head, unreg_list) {
+#ifdef CONFIG_IFACE_STAT
 		/* Store stats for this device in persistent iface_stat */
 		iface_stat_update(dev);
+#endif
 
 		/* Shutdown queueing discipline. */
 		dev_shutdown(dev);
