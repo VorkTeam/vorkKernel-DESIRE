@@ -35,7 +35,6 @@
 #define OJ_POWEROFF                 0
 #define CURCIAL_OJ_POWER            85
 #define BURST_DATA_SIZE             7
-#define OJ_DEVICE_ID                0x0D
 #define OJ_REGISTER_WRITE           0x7B
 #define OJ_REGISTER_REQUEST         0x7C
 #define OJ_REGISTER_READ            0x7D
@@ -97,9 +96,25 @@ static uint16_t	index;
 static int __devinit curcial_oj_probe(struct platform_device *pdev);
 static int __devexit curcial_oj_remove(struct platform_device *pdev);
 
+static int curcial_oj_suspend(struct platform_device *pdev, pm_message_t mesg)
+{
+	if (my_oj->share_power == false) {
+		my_oj->oj_poweron(OJ_POWEROFF);
+	}
+	return 0;
+}
+
+static int curcial_oj_resume(struct platform_device *pdev)
+{
+	my_oj->oj_poweron(OJ_POWERON);
+	return 0;
+}
+
 static struct platform_driver curcial_oj_device_driver = {
 	.probe    = curcial_oj_probe,
 	.remove   = __devexit_p(curcial_oj_remove),
+	.suspend  = curcial_oj_suspend,
+	.resume   = curcial_oj_resume,
 	.driver   = {
 		.name   = CURCIAL_OJ_NAME,
 		.owner  = THIS_MODULE,
@@ -179,8 +194,8 @@ static int curcial_oj_init(void)
 
 	for (i = 0;i < OJ_RETRY; i++ ) {
 	id = curcial_oj_register_read(0x00);
-	if (id == OJ_DEVICE_ID) {
-		printk(KERN_INFO"OpticalJoystick Device ID: %02x\n", OJ_DEVICE_ID);
+	if (id == my_oj->device_id) {
+		printk(KERN_INFO"OpticalJoystick Device ID: %02x\n", my_oj->device_id);
 		id = curcial_oj_register_read(0x01);
 		printk(KERN_INFO"OJ Driver: Revision : %02x\n", id);
 			break;
@@ -238,8 +253,8 @@ static void curcial_oj_work_func(struct work_struct *work)
 	bool out = false;
 	uint8_t pxsum;
 	uint16_t sht;
-	int16_t	x_sum;
-	int16_t	y_sum;
+	int16_t	x_sum, x_idx;
+	int16_t	y_sum, y_idx;
 
 	curcial_oj_polling_mode(OJ_POLLING_DISABLE);
 
@@ -317,8 +332,15 @@ static void curcial_oj_work_func(struct work_struct *work)
 				}
 			}
 
-			x_count = oj->Xsteps[abs(x_sum) / normal_th];
-			y_count = oj->Ysteps[abs(y_sum) / normal_th];
+			x_idx = abs(x_sum) / normal_th;
+			y_idx = abs(y_sum) / normal_th;
+			if (x_idx >= ARRAY_SIZE(oj->Xsteps))
+				x_idx = ARRAY_SIZE(oj->Xsteps) - 1;
+			if (y_idx >= ARRAY_SIZE(oj->Ysteps))
+				y_idx = ARRAY_SIZE(oj->Ysteps) - 1;
+
+			x_count = oj->Xsteps[x_idx];
+			y_count = oj->Ysteps[y_idx];
 			if (evtKey == OJ_KEY_LEFT) {
 				for (j = 0; j < x_count; j++) {
 					input_report_rel(oj->input_dev, REL_X, -1);
@@ -362,7 +384,7 @@ static void curcial_oj_work_func(struct work_struct *work)
 		mDeltaX = 0;
 		mDeltaY = 0;
 		if (polling_delay)
-			msleep(polling_delay);/*hr_msleep(polling_delay);*/
+			msleep(polling_delay);
 			} while ((data[0] & 0x80) && (!atomic_read(&suspend_flag)));
 
 
@@ -563,7 +585,7 @@ static ssize_t oj_reset_store(struct device *dev,
 
 	return count;
 }
-static DEVICE_ATTR(reset, 0666, oj_show, oj_reset_store);
+static DEVICE_ATTR(reset, 0664, oj_show, oj_reset_store);
 static DEVICE_ATTR(deltax, 0444, oj_deltax_show, NULL);
 static DEVICE_ATTR(deltay, 0444, oj_deltay_show, NULL);
 static DEVICE_ATTR(SumDeltaX, 0444, oj_SumDeltaX_show, NULL);
@@ -586,9 +608,8 @@ static void curcial_oj_early_suspend(struct early_suspend *h)
 	printk(KERN_ERR"%s: enter\n", __func__);
 	oj->oj_shutdown(1);
 	curcial_oj_polling_mode(OJ_POLLING_DISABLE);
-	if (oj->share_power == false) {
-		oj->oj_poweron(OJ_POWEROFF);
-	}
+	if (oj->reset_pin)
+		oj->oj_reset(0);
 	microp_spi_vote_enable(SPI_OJ, 0);
 
 }
@@ -598,6 +619,15 @@ static void curcial_oj_late_resume(struct early_suspend *h)
 	struct curcial_oj_platform_data	*oj;
 	atomic_set(&suspend_flag, 0);
 	oj = container_of(h, struct curcial_oj_platform_data, early_suspend);
+
+	if (oj->reset_pin) {
+		ndelay(20);
+		oj->oj_reset(1);
+	} else if (!oj->share_power) {
+		oj->oj_poweron(OJ_POWEROFF);
+		msleep(40);
+	}
+
 	printk(KERN_ERR"%s: enter\n", __func__);
 	if (!curcial_oj_init())
 		microp_spi_vote_enable(SPI_OJ, 0);

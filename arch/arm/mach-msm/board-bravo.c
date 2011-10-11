@@ -652,7 +652,6 @@ static int __capella_cm3602_power(int on)
 		__func__, (on) ? "on" : "off");
 	if (on) {
 		gpio_direction_output(BRAVO_GPIO_LS_EN_N, 0);
-		gpio_direction_output(BRAVO_GPIO_PROXIMITY_EN, 1);
 	} else {
 		gpio_direction_output(BRAVO_GPIO_LS_EN_N, 1);
 	}
@@ -953,6 +952,7 @@ static struct curcial_oj_platform_data bravo_oj_data = {
 #endif
 	.x		= 1,
 	.share_power	= false,
+	.reset_pin	= false,
 	.debugflag	= 0,
 	.ap_code	= false,
 	.sht_tbl	= {0, 1000, 1250, 1500, 1750, 2000, 3000},
@@ -965,6 +965,7 @@ static struct curcial_oj_platform_data bravo_oj_data = {
 		10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
 		9, 9, 9, 9, 9, 9, 9, 9, 9, 9},
 	.irq		= MSM_uP_TO_INT(12),
+	.device_id	= 0x0D,
 };
 
 static struct platform_device bravo_oj = {
