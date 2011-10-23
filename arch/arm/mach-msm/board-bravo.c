@@ -1002,7 +1002,6 @@ static struct platform_device *devices[] __initdata = {
 	&android_usb_device,
 	&android_pmem_mdp_device,
 	&android_pmem_adsp_device,
-	&android_pmem_camera_device,
 #ifdef CONFIG_720P_CAMERA
 	&android_pmem_venc_device,
 #endif
