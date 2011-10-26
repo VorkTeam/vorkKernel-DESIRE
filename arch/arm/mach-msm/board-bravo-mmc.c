@@ -237,7 +237,7 @@ static unsigned int bravo_wifi_status(struct device *dev)
 }
 
 static struct mmc_platform_data bravo_wifi_data = {
-	.ocr_mask		= MMC_VDD_20_21,
+	.ocr_mask		= MMC_VDD_24_25,
 	.built_in		= 1,
 	.status			= bravo_wifi_status,
 	.register_status_notify	= bravo_wifi_status_register,
