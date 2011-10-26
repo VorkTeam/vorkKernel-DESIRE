@@ -1667,7 +1667,7 @@ static struct s5k3e2fx_waitevent s5k3e2fx_event;
 
 
 static DECLARE_WAIT_QUEUE_HEAD(s5k3e2fx_wait_queue);
-DEFINE_SEMAPHORE(s5k3e2fx_sem);
+DEFINE_MUTEX(s5k3e2fx_sem);
 
 #define MAX_I2C_RETRIES 20
 static int i2c_transfer_retry(struct i2c_adapter *adap,
