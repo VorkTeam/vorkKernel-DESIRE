@@ -18,7 +18,6 @@
 #define __ASM_ARCH_MSM_BOARD_H
 
 #include <linux/types.h>
-#include <mach/mmc.h>
 #include <asm/setup.h>
 
 /* platform device data structures */
@@ -70,6 +69,25 @@ struct msm_camera_legacy_device_platform_data {
 	struct msm_camsensor_device_platform_data *sensor_info;
 };
 
+struct msm_i2c_platform_data {
+	int clk_freq;
+#ifdef CONFIG_ARCH_MSM7X30 /* TODO.606 need camera team help to check */
+	uint32_t rmutex;
+	const char *rsl_id;
+#else
+	uint32_t *rmutex;
+	int rsl_id;
+#endif
+	uint32_t pm_lat;
+	int pri_clk;
+	int pri_dat;
+	int aux_clk;
+	int aux_dat;
+	const char *clk;
+	const char *pclk;
+	void (*msm_i2c_config_gpio)(int iface, int config_type);
+};
+
 #define MSM_CAMERA_FLASH_NONE 0
 #define MSM_CAMERA_FLASH_LED  1
 #define MSM_CAMERA_FLASH_SRC_PMIC (0x00000001<<0)
@@ -110,11 +128,6 @@ struct camera_flash_cfg {
 	uint8_t postpone_led_mode;
 };
 
-enum msm_camera_source{
-	MAIN_SOURCE,
-	SECOND_SOURCE,
-};
-
 struct msm_camera_sensor_info {
 	const char *sensor_name;
 	int sensor_reset;
@@ -129,8 +142,6 @@ struct msm_camera_sensor_info {
 	int analog_pwd1_gpio;
 	int (*camera_power_on)(void);
 	int (*camera_power_off)(void);
-	void(*camera_set_source)(enum msm_camera_source);
-	enum msm_camera_source(*camera_get_source)(void);
 	int (*camera_main_get_probe)(void);
 	void (*camera_main_set_probe)(int);
 	int mclk;
@@ -162,8 +173,65 @@ struct msm_snd_endpoints {
 	unsigned num;
 };
 
-struct clk;
-extern struct sys_timer msm_timer;
+enum {
+	BOOTMODE_NORMAL = 	0x0,
+	BOOTMODE_FACTORY = 	0x1,
+	BOOTMODE_RECOVERY = 	0x2,
+	BOOTMODE_CHARGE	= 	0x3,
+	BOOTMODE_POWERTEST = 	0x4,
+	BOOTMODE_OFFMODE_CHARGING = 0x5,
+};
+
+#define MSM_MAX_DEC_CNT 14
+/* 7k target ADSP information */
+/* Bit 23:0, for codec identification like mp3, wav etc *
+ * Bit 27:24, for mode identification like tunnel, non tunnel*
+ * bit 31:28, for operation support like DM, DMA */
+enum msm_adspdec_concurrency {
+	MSM_ADSP_CODEC_WAV = 0,
+	MSM_ADSP_CODEC_ADPCM = 1,
+	MSM_ADSP_CODEC_MP3 = 2,
+	MSM_ADSP_CODEC_REALAUDIO = 3,
+	MSM_ADSP_CODEC_WMA = 4,
+	MSM_ADSP_CODEC_AAC = 5,
+	MSM_ADSP_CODEC_RESERVED = 6,
+	MSM_ADSP_CODEC_MIDI = 7,
+	MSM_ADSP_CODEC_YADPCM = 8,
+	MSM_ADSP_CODEC_QCELP = 9,
+	MSM_ADSP_CODEC_AMRNB = 10,
+	MSM_ADSP_CODEC_AMRWB = 11,
+	MSM_ADSP_CODEC_EVRC = 12,
+	MSM_ADSP_CODEC_WMAPRO = 13,
+	MSM_ADSP_MODE_TUNNEL = 24,
+	MSM_ADSP_MODE_NONTUNNEL = 25,
+	MSM_ADSP_MODE_LP = 26,
+	MSM_ADSP_OP_DMA = 28,
+	MSM_ADSP_OP_DM = 29,
+};
+
+struct msm_adspdec_info {
+	const char *module_name;
+	unsigned module_queueid;
+	int module_decid; /* objid */
+	unsigned nr_codec_support;
+};
+
+/* Carries information about number codec
+ * supported if same codec or different codecs
+ */
+struct dec_instance_table {
+	uint8_t max_instances_same_dec;
+	uint8_t max_instances_diff_dec;
+};
+
+struct msm_adspdec_database {
+	unsigned num_dec;
+	unsigned num_concurrency_support;
+	unsigned int *dec_concurrency_table; /* Bit masked entry to *
+					      *	represents codec, mode etc */
+	struct msm_adspdec_info  *dec_info_list;
+	struct dec_instance_table *dec_instance_list;
+};
 
 /* common init routines for use by arch/arm/mach-msm/board-*.c */
 void __init msm_add_devices(void);
@@ -172,10 +240,34 @@ void __init msm_init_irq(void);
 void __init msm_clock_init(struct clk *clock_tbl, unsigned num_clocks);
 void __init msm_acpu_clock_init(struct msm_acpu_clock_platform_data *);
 
-#ifdef CONFIG_USB_MSM_72K
+#if defined(CONFIG_USB_FUNCTION_MSM_HSUSB) || defined(CONFIG_USB_MSM_72K)
 void msm_hsusb_set_vbus_state(int online);
+/* START: add USB connected notify function */
+struct t_usb_status_notifier{
+	struct list_head notifier_link;
+	const char *name;
+	void (*func)(int online);
+};
+	int usb_register_notifier(struct t_usb_status_notifier *);
+	static LIST_HEAD(g_lh_usb_notifier_list);
+/* END: add USB connected notify function */
 #else
 static inline void msm_hsusb_set_vbus_state(int online) {}
 #endif
+
+int __init parse_tag_skuid(const struct tag *tags);
+int __init parse_tag_engineerid(const struct tag *tags);
+int __init parse_tag_memsize(const struct tag *tags);
+int board_mfg_mode(void);
+void __init msm_snddev_init(void);
+void msm_snddev_poweramp_on(void);
+void msm_snddev_poweramp_off(void);
+void msm_snddev_hsed_pamp_on(void);
+void msm_snddev_hsed_pamp_off(void);
+void msm_snddev_tx_route_config(void);
+void msm_snddev_tx_route_deconfig(void);
+
+extern int emmc_partition_read_proc(char *page, char **start, off_t off,
+			   int count, int *eof, void *data);
 
 #endif
